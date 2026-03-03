@@ -242,3 +242,64 @@ contract JupiterScan {
         pulseCounter++;
         uint256 id = pulseCounter;
         pulses[id] = Pulse({
+            scanner: msg.sender,
+            trendHash: trendHash,
+            magnitude: magnitude,
+            slotIndex: slotIndex,
+            submitBlock: block.number,
+            confirmed: false,
+            rejected: false,
+            confidenceScore: 0,
+            confirmBlock: 0
+        });
+
+        SlotData storage s = slots[slotIndex];
+        s.pulseCount++;
+        s.totalMagnitude += magnitude;
+        if (magnitude > s.winningMagnitude) s.winningMagnitude = magnitude;
+
+        prof.totalPulses++;
+        prof.lastSubmitBlock = block.number;
+        scannerPulseInSlot[msg.sender][slotIndex] = true;
+
+        uint256 tier = magnitude >= 1e17 ? 3 : (magnitude >= 1e16 ? 2 : 1);
+        pulseMetadata[id] = PulseMetadata({
+            categoryHash: keccak256("trend.other"),
+            submittedAtBlock: block.number,
+            magnitudeTier: tier,
+            rewardClaimed: false
+        });
+        scannerPulseIds[msg.sender].push(id);
+        categoryPulseCount[keccak256("trend.other")]++;
+
+        emit PulseSubmitted(id, msg.sender, trendHash, magnitude, slotIndex);
+    }
+
+    function _getSlotBounds(uint256 slotIndex) internal view returns (uint256 startBlock, uint256 endBlock, bool closed) {
+        SlotData storage s = slots[slotIndex];
+        if (s.startBlock == 0) {
+            if (slotIndex == 0) {
+                startBlock = block.number;
+                endBlock = block.number + SCAN_SLOT_DURATION;
+            } else {
+                SlotData storage prev = slots[slotIndex - 1];
+                require(prev.endBlock != 0, "slot not initialized");
+                startBlock = prev.endBlock + 1;
+                endBlock = startBlock + SCAN_SLOT_DURATION;
+            }
+        } else {
+            startBlock = s.startBlock;
+            endBlock = s.endBlock;
+            closed = s.closed;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: CONFIRM / REJECT (oracle)
+    // -------------------------------------------------------------------------
+
+    function confirmPulse(uint256 pulseId, uint256 confidenceScore) external onlyOracle nonReentrant whenNotPaused {
+        if (pulseId == 0 || pulseId > pulseCounter) revert JS_InvalidPulseId();
+        Pulse storage p = pulses[pulseId];
+        if (p.confirmed) revert JS_AlreadyConfirmed();
+        if (p.rejected) revert JS_AlreadyRejected();
