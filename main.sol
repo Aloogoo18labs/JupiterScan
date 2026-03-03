@@ -120,3 +120,64 @@ contract JupiterScan {
     }
 
     struct PulseMetadata {
+        bytes32 categoryHash;
+        uint256 submittedAtBlock;
+        uint256 magnitudeTier;
+        bool rewardClaimed;
+    }
+
+    struct TrendSnapshot {
+        uint256 slotIndex;
+        uint256 totalMagnitudeInSlot;
+        uint256 pulseCountInSlot;
+        uint256 blockWhenClosed;
+    }
+
+    uint256 private _guard;
+    uint256 public pulseCounter;
+    uint256 public slotCounter;
+    uint256 public totalFeesCollected;
+    uint256 public totalRewardsPaid;
+    bool public emergencyPaused;
+
+    mapping(uint256 => Pulse) public pulses;
+    mapping(uint256 => SlotData) public slots;
+    mapping(address => ScannerProfile) public scanners;
+    mapping(address => mapping(uint256 => bool)) public scannerPulseInSlot;
+    mapping(bytes32 => uint256) public thresholdConfig;
+    mapping(address => bool) public allowedRelays;
+    mapping(uint256 => mapping(address => bool)) public claimTracker;
+    mapping(uint256 => PulseMetadata) public pulseMetadata;
+    mapping(uint256 => TrendSnapshot) public trendSnapshots;
+    mapping(bytes32 => uint256) public categoryPulseCount;
+    mapping(address => uint256[]) public scannerPulseIds;
+    mapping(uint256 => uint256) public slotToSnapshotIndex;
+
+    // -------------------------------------------------------------------------
+    // MODIFIERS
+    // -------------------------------------------------------------------------
+
+    modifier onlyOracle() {
+        if (msg.sender != pulseOracle) revert JS_Unauthorized();
+        _;
+    }
+
+    modifier onlyOperator() {
+        if (msg.sender != scanOperator) revert JS_Unauthorized();
+        _;
+    }
+
+    modifier nonReentrant() {
+        if (_guard != 0) revert JS_Reentrancy();
+        _guard = 1;
+        _;
+        _guard = 0;
+    }
+
+    modifier whenNotPaused() {
+        if (emergencyPaused) revert JS_Paused();
+        _;
+    }
+
+    modifier whenPaused() {
+        if (!emergencyPaused) revert JS_NotPaused();
