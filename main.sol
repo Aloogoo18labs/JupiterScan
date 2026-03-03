@@ -181,3 +181,64 @@ contract JupiterScan {
 
     modifier whenPaused() {
         if (!emergencyPaused) revert JS_NotPaused();
+        _;
+    }
+
+    // -------------------------------------------------------------------------
+    // CONSTRUCTOR
+    // -------------------------------------------------------------------------
+
+    constructor() {
+        pulseOracle = 0x8E3c7A1f4B6d9e2C5a8F1b4D7e0A3c6B9d2E5f8a1;
+        trendTreasury = 0x1F4b7C0e3A6d9f2B5a8E1c4D7f0A3b6C9e2D5f8aB;
+        scanOperator = 0xA2d5F8b1C4e7D0a3F6b9C2e5D8f1A4c7B0d3E6f9;
+        relayHub = 0x5E8a1C4d7F0b3E6a9D2f5B8c1E4a7D0b3F6c9E2;
+        fallbackReceiver = 0xB3f6C9e2D5a8F1b4E7c0A3d6F9b2C5e8A1d4F7;
+        _initThresholds();
+    }
+
+    function _initThresholds() internal {
+        thresholdConfig[keccak256("min.confidence")] = 5000;
+        thresholdConfig[keccak256("max.magnitude")] = MAX_PULSE_MAGNITUDE;
+        thresholdConfig[keccak256("slot.duration")] = SCAN_SLOT_DURATION;
+        thresholdConfig[keccak256("reward.claim.blocks")] = REWARD_CLAIM_BLOCKS;
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: REGISTER SCANNER (stake)
+    // -------------------------------------------------------------------------
+
+    function registerScanner() external payable nonReentrant whenNotPaused {
+        if (msg.value < MIN_SCANNER_STAKE) revert JS_StakeInsufficient();
+        ScannerProfile storage p = scanners[msg.sender];
+        if (p.stake != 0) {
+            p.stake += msg.value;
+        } else {
+            p.stake = msg.value;
+            p.totalPulses = 0;
+            p.confirmedPulses = 0;
+            p.lastSubmitBlock = 0;
+            p.banned = false;
+            p.totalRewardsClaimed = 0;
+        }
+        emit ScannerRegistered(msg.sender, msg.value, block.number);
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: SUBMIT PULSE
+    // -------------------------------------------------------------------------
+
+    function submitPulse(bytes32 trendHash, uint256 magnitude, uint256 slotIndex) external nonReentrant whenNotPaused {
+        if (magnitude == 0 || magnitude > MAX_PULSE_MAGNITUDE) revert JS_InvalidMagnitude();
+        ScannerProfile storage prof = scanners[msg.sender];
+        if (prof.stake < MIN_SCANNER_STAKE || prof.banned) revert JS_StakeInsufficient();
+        if (block.number <= prof.lastSubmitBlock + COOLDOWN_BLOCKS) revert JS_CooldownActive();
+
+        (uint256 startBlock, uint256 endBlock, bool closed) = _getSlotBounds(slotIndex);
+        if (block.number < startBlock || block.number > endBlock) revert JS_InvalidSlot();
+        if (closed) revert JS_SlotClosed();
+        if (scannerPulseInSlot[msg.sender][slotIndex]) revert JS_DuplicateSubmission();
+
+        pulseCounter++;
+        uint256 id = pulseCounter;
+        pulses[id] = Pulse({
