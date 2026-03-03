@@ -303,3 +303,64 @@ contract JupiterScan {
         Pulse storage p = pulses[pulseId];
         if (p.confirmed) revert JS_AlreadyConfirmed();
         if (p.rejected) revert JS_AlreadyRejected();
+        uint256 minConf = thresholdConfig[keccak256("min.confidence")];
+        if (minConf != 0 && confidenceScore < minConf) revert JS_ConfidenceTooLow();
+
+        p.confirmed = true;
+        p.confidenceScore = confidenceScore;
+        p.confirmBlock = block.number;
+
+        ScannerProfile storage prof = scanners[p.scanner];
+        prof.confirmedPulses++;
+
+        emit PulseConfirmed(pulseId, confidenceScore, block.number);
+    }
+
+    function rejectPulse(uint256 pulseId, bytes32 reasonCode) external onlyOracle nonReentrant whenNotPaused {
+        if (pulseId == 0 || pulseId > pulseCounter) revert JS_InvalidPulseId();
+        Pulse storage p = pulses[pulseId];
+        if (p.confirmed) revert JS_AlreadyConfirmed();
+        if (p.rejected) revert JS_AlreadyRejected();
+
+        p.rejected = true;
+        emit PulseRejected(pulseId, msg.sender, reasonCode);
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: CLOSE SLOT (operator)
+    // -------------------------------------------------------------------------
+
+    function closeSlot(uint256 slotIndex) external onlyOperator nonReentrant whenNotPaused {
+        SlotData storage s = slots[slotIndex];
+        require(s.startBlock != 0, "slot not started");
+        if (block.number <= s.endBlock) revert JS_InvalidSlot();
+        if (s.closed) return;
+
+        s.closed = true;
+        uint256 snapIdx = slotCounter;
+        trendSnapshots[snapIdx] = TrendSnapshot({
+            slotIndex: slotIndex,
+            totalMagnitudeInSlot: s.totalMagnitude,
+            pulseCountInSlot: s.pulseCount,
+            blockWhenClosed: block.number
+        });
+        slotToSnapshotIndex[slotIndex] = snapIdx;
+        emit SlotClosed(slotIndex, s.pulseCount, s.winningMagnitude);
+    }
+
+    function ensureSlot(uint256 slotIndex) external onlyOperator {
+        SlotData storage s = slots[slotIndex];
+        if (s.startBlock != 0) return;
+        if (slotIndex == 0) {
+            s.startBlock = block.number;
+            s.endBlock = block.number + SCAN_SLOT_DURATION;
+        } else {
+            SlotData storage prev = slots[slotIndex - 1];
+            require(prev.endBlock != 0, "prev slot not set");
+            s.startBlock = prev.endBlock + 1;
+            s.endBlock = s.startBlock + SCAN_SLOT_DURATION;
+        }
+        slotCounter = slotIndex + 1;
+    }
+
+    // -------------------------------------------------------------------------
