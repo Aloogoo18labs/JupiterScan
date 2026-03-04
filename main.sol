@@ -364,3 +364,64 @@ contract JupiterScan {
     }
 
     // -------------------------------------------------------------------------
+    // EXTERNAL: CLAIM REWARD
+    // -------------------------------------------------------------------------
+
+    function claimReward(uint256 pulseId) external nonReentrant whenNotPaused {
+        if (pulseId == 0 || pulseId > pulseCounter) revert JS_InvalidPulseId();
+        Pulse storage p = pulses[pulseId];
+        if (p.scanner != msg.sender) revert JS_Unauthorized();
+        if (!p.confirmed) revert JS_ConfidenceTooLow();
+        if (claimTracker[pulseId][msg.sender]) revert JS_NothingToClaim();
+
+        uint256 confirmBlock = p.confirmBlock;
+        uint256 claimWindow = thresholdConfig[keccak256("reward.claim.blocks")] != 0
+            ? thresholdConfig[keccak256("reward.claim.blocks")]
+            : REWARD_CLAIM_BLOCKS;
+        if (block.number > confirmBlock + claimWindow) revert JS_ClaimWindowClosed();
+
+        uint256 reward = _computeReward(pulseId);
+        if (reward == 0) revert JS_NothingToClaim();
+
+        claimTracker[pulseId][msg.sender] = true;
+        pulseMetadata[pulseId].rewardClaimed = true;
+        totalRewardsPaid += reward;
+        scanners[msg.sender].totalRewardsClaimed += reward;
+
+        (bool ok, ) = msg.sender.call{ value: reward }("");
+        if (!ok) revert JS_TransferFailed();
+        emit RewardDistributed(msg.sender, reward, pulseId);
+    }
+
+    function _computeReward(uint256 pulseId) internal view returns (uint256) {
+        Pulse storage p = pulses[pulseId];
+        uint256 mag = p.magnitude;
+        uint256 conf = p.confidenceScore;
+        if (conf < 5000) return 0;
+        uint256 base = (mag * conf) / 10000;
+        uint256 cap = 0.01 ether;
+        return base > cap ? cap : base;
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: FEES (payable)
+    // -------------------------------------------------------------------------
+
+    function depositFee(uint256 pulseId) external payable nonReentrant whenNotPaused {
+        if (msg.value == 0) revert JS_ZeroAmount();
+        if (pulseId > pulseCounter) revert JS_InvalidPulseId();
+        totalFeesCollected += msg.value;
+        emit FeeCollected(msg.sender, msg.value, pulseId);
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: RELAY (allowed relays only)
+    // -------------------------------------------------------------------------
+
+    function forwardRelay(bytes calldata payload) external nonReentrant whenNotPaused {
+        if (!allowedRelays[msg.sender]) revert JS_RelayNotAllowed();
+        if (payload.length > MAX_PAYLOAD_BYTES) revert JS_PayloadTooLarge();
+        bytes32 payloadHash = keccak256(payload);
+        emit RelayForwarded(msg.sender, payloadHash, block.number);
+    }
+
