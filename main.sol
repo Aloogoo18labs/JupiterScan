@@ -1462,3 +1462,64 @@ contract JupiterScan {
         return account == pulseOracle;
     }
 
+    function isTreasury(address account) external view returns (bool) {
+        return account == trendTreasury;
+    }
+
+    function getTreasuryBalance() external view returns (uint256) {
+        return address(trendTreasury).balance;
+    }
+
+    function getThisContractBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function getBlockNumber() external view returns (uint256) {
+        return block.number;
+    }
+
+    function getChainId() external view returns (uint256) {
+        return block.chainid;
+    }
+
+    function getPulseConfidenceBps(uint256 pulseId) external view returns (uint256) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        return pulses[pulseId].confidenceScore;
+    }
+
+    function getPulseMagnitude(uint256 pulseId) external view returns (uint256) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        return pulses[pulseId].magnitude;
+    }
+
+    function getPulseTrendHash(uint256 pulseId) external view returns (bytes32) {
+        if (pulseId == 0 || pulseId > pulseCounter) return bytes32(0);
+        return pulses[pulseId].trendHash;
+    }
+
+    function getPulseScanner(uint256 pulseId) external view returns (address) {
+        if (pulseId == 0 || pulseId > pulseCounter) return address(0);
+        return pulses[pulseId].scanner;
+    }
+
+    function getPulseSubmitBlock(uint256 pulseId) external view returns (uint256) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        return pulses[pulseId].submitBlock;
+    }
+
+    function getPulseConfirmBlock(uint256 pulseId) external view returns (uint256) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        return pulses[pulseId].confirmBlock;
+    }
+
+    function getSlotStartBlock(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].startBlock;
+    }
+
+    function getSlotEndBlock(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].endBlock;
+    }
+
+    function getSlotPulseCountDirect(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].pulseCount;
+    }
