@@ -547,3 +547,64 @@ contract JupiterScan {
         bool closed_
     ) {
         SlotData storage s = slots[slotIndex];
+        return (
+            s.startBlock,
+            s.endBlock,
+            s.pulseCount,
+            s.totalMagnitude,
+            s.winningMagnitude,
+            s.closed
+        );
+    }
+
+    function getCurrentSlotIndex() external view returns (uint256) {
+        if (slotCounter == 0) return 0;
+        SlotData storage last = slots[slotCounter - 1];
+        if (block.number <= last.endBlock) return slotCounter - 1;
+        return slotCounter;
+    }
+
+    function getSlotBounds(uint256 slotIndex) external view returns (uint256 startBlock, uint256 endBlock, bool closed) {
+        return _getSlotBounds(slotIndex);
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS: SCANNERS
+    // -------------------------------------------------------------------------
+
+    function getScanner(address scanner) external view returns (
+        uint256 stake_,
+        uint256 totalPulses_,
+        uint256 confirmedPulses_,
+        uint256 lastSubmitBlock_,
+        bool banned_,
+        uint256 totalRewardsClaimed_
+    ) {
+        ScannerProfile storage p = scanners[scanner];
+        return (
+            p.stake,
+            p.totalPulses,
+            p.confirmedPulses,
+            p.lastSubmitBlock,
+            p.banned,
+            p.totalRewardsClaimed
+        );
+    }
+
+    function canSubmit(address scanner, uint256 slotIndex) external view returns (bool) {
+        ScannerProfile storage p = scanners[scanner];
+        if (p.stake < MIN_SCANNER_STAKE || p.banned) return false;
+        if (scannerPulseInSlot[scanner][slotIndex]) return false;
+        (uint256 startBlock, uint256 endBlock, bool closed) = _getSlotBounds(slotIndex);
+        if (closed || block.number < startBlock || block.number > endBlock) return false;
+        if (block.number <= p.lastSubmitBlock + COOLDOWN_BLOCKS) return false;
+        return true;
+    }
+
+    function hasClaimed(uint256 pulseId, address account) external view returns (bool) {
+        return claimTracker[pulseId][account];
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS: CONFIG & GLOBAL
+    // -------------------------------------------------------------------------
