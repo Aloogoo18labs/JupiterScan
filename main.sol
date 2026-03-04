@@ -608,3 +608,64 @@ contract JupiterScan {
     // -------------------------------------------------------------------------
     // VIEWS: CONFIG & GLOBAL
     // -------------------------------------------------------------------------
+
+    function getThreshold(bytes32 key) external view returns (uint256) {
+        return thresholdConfig[key];
+    }
+
+    function getDomainSeal() external pure returns (bytes32) {
+        return JUPITER_DOMAIN_SEAL;
+    }
+
+    function getProtocolVersion() external pure returns (uint256) {
+        return PROTOCOL_VERSION;
+    }
+
+    function getSlotLabel() external pure returns (bytes32) {
+        return SLOT_LABEL;
+    }
+
+    function getTotalFeesCollected() external view returns (uint256) {
+        return totalFeesCollected;
+    }
+
+    function getTotalRewardsPaid() external view returns (uint256) {
+        return totalRewardsPaid;
+    }
+
+    function getBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
+    function getOracle() external view returns (address) {
+        return pulseOracle;
+    }
+
+    function getTrendTreasury() external view returns (address) {
+        return trendTreasury;
+    }
+
+    function getScanOperator() external view returns (address) {
+        return scanOperator;
+    }
+
+    function getRelayHub() external view returns (address) {
+        return relayHub;
+    }
+
+    function getFallbackReceiver() external view returns (address) {
+        return fallbackReceiver;
+    }
+
+    function isRelayAllowed(address relay) external view returns (bool) {
+        return allowedRelays[relay];
+    }
+
+    function isPaused() external view returns (bool) {
+        return emergencyPaused;
+    }
+
+    // -------------------------------------------------------------------------
+    // BATCH / AGGREGATE VIEWS
+    // -------------------------------------------------------------------------
+
