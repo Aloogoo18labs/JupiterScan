@@ -1401,3 +1401,64 @@ contract JupiterScan {
         address relay_,
         address fallback_
     ) {
+        return (pulseOracle, trendTreasury, scanOperator, relayHub, fallbackReceiver);
+    }
+
+    function getSlotDurationSeconds(uint256 blockTimeEstimate) external pure returns (uint256) {
+        return SCAN_SLOT_DURATION * blockTimeEstimate;
+    }
+
+    function getRewardFormula(uint256 magnitude, uint256 confidenceBps) external pure returns (uint256 rawReward, uint256 cappedReward) {
+        if (confidenceBps < 5000) return (0, 0);
+        rawReward = (magnitude * confidenceBps) / 10000;
+        cappedReward = rawReward > REWARD_CAP_PER_PULSE ? REWARD_CAP_PER_PULSE : rawReward;
+    }
+
+    function getPulseIdsForScannerInSlot(address scanner, uint256 slotIndex) external view returns (uint256[] memory ids) {
+        uint256[] storage all = scannerPulseIds[scanner];
+        uint256 n = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            if (pulses[all[i]].slotIndex == slotIndex) n++;
+        }
+        ids = new uint256[](n);
+        uint256 j = 0;
+        for (uint256 i = 0; i < all.length; i++) {
+            if (pulses[all[i]].slotIndex == slotIndex) {
+                ids[j] = all[i];
+                j++;
+            }
+        }
+    }
+
+    function getLastPulseId() external view returns (uint256) {
+        return pulseCounter;
+    }
+
+    function getFirstPulseId() external pure returns (uint256) {
+        return 1;
+    }
+
+    function getMaxPulseId() external view returns (uint256) {
+        return pulseCounter;
+    }
+
+    function getVersionString() external pure returns (string memory) {
+        return "JupiterScan.v304";
+    }
+
+    function getDomainSealHex() external pure returns (bytes32) {
+        return JUPITER_DOMAIN_SEAL;
+    }
+
+    function getSlotLabelHex() external pure returns (bytes32) {
+        return SLOT_LABEL;
+    }
+
+    function isOperator(address account) external view returns (bool) {
+        return account == scanOperator;
+    }
+
+    function isOracle(address account) external view returns (bool) {
+        return account == pulseOracle;
+    }
+
