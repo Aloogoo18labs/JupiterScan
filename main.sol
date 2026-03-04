@@ -974,3 +974,64 @@ contract JupiterScan {
         blocksRemaining_ = _blocksRemainingInSlot(slotIndex);
         return (
             s.startBlock,
+            s.endBlock,
+            s.pulseCount,
+            s.totalMagnitude,
+            s.winningMagnitude,
+            s.closed,
+            blocksRemaining_
+        );
+    }
+
+    function getGlobalStats() external view returns (
+        uint256 totalPulses_,
+        uint256 confirmedPulses_,
+        uint256 rejectedPulses_,
+        uint256 pendingPulses_,
+        uint256 totalSlots_,
+        uint256 totalFees_,
+        uint256 totalRewards_
+    ) {
+        uint256 conf = 0;
+        uint256 rej = 0;
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (pulses[i].confirmed) conf++;
+            else if (pulses[i].rejected) rej++;
+        }
+        return (
+            pulseCounter,
+            conf,
+            rej,
+            pulseCounter - conf - rej,
+            slotCounter,
+            totalFeesCollected,
+            totalRewardsPaid
+        );
+    }
+
+    function getConstants() external pure returns (
+        uint256 scanSlotDuration_,
+        uint256 maxPulseMagnitude_,
+        uint256 minScannerStake_,
+        uint256 confirmationThresholdBps_,
+        uint256 rewardClaimBlocks_,
+        uint256 cooldownBlocks_,
+        uint256 maxPayloadBytes_,
+        uint256 protocolVersion_
+    ) {
+        return (
+            SCAN_SLOT_DURATION,
+            MAX_PULSE_MAGNITUDE,
+            MIN_SCANNER_STAKE,
+            CONFIRMATION_THRESHOLD_BPS,
+            REWARD_CLAIM_BLOCKS,
+            COOLDOWN_BLOCKS,
+            MAX_PAYLOAD_BYTES,
+            PROTOCOL_VERSION
+        );
+    }
+
+    function getImmutableAddresses() external view returns (
+        address pulseOracle_,
+        address trendTreasury_,
+        address scanOperator_,
