@@ -852,3 +852,64 @@ contract JupiterScan {
     }
 
     function getAverageMagnitude() external view returns (uint256 sum, uint256 count) {
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            sum += pulses[i].magnitude;
+            count++;
+        }
+    }
+
+    function getConfirmationRateBps() external view returns (uint256) {
+        if (pulseCounter == 0) return 0;
+        uint256 confirmed = 0;
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (pulses[i].confirmed) confirmed++;
+        }
+        return (confirmed * 10000) / pulseCounter;
+    }
+
+    function getRejectionRateBps() external view returns (uint256) {
+        if (pulseCounter == 0) return 0;
+        uint256 rejected = 0;
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (pulses[i].rejected) rejected++;
+        }
+        return (rejected * 10000) / pulseCounter;
+    }
+
+    function getPendingPulseCount() external view returns (uint256 count) {
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (!pulses[i].confirmed && !pulses[i].rejected) count++;
+        }
+    }
+
+    function getClaimableRewardTotal(address scanner) external view returns (uint256 total) {
+        uint256[] storage ids = scannerPulseIds[scanner];
+        for (uint256 i = 0; i < ids.length; i++) {
+            uint256 id = ids[i];
+            if (pulses[id].scanner != scanner || !pulses[id].confirmed || claimTracker[id][scanner]) continue;
+            uint256 claimWindow = thresholdConfig[keccak256("reward.claim.blocks")] != 0
+                ? thresholdConfig[keccak256("reward.claim.blocks")]
+                : REWARD_CLAIM_BLOCKS;
+            if (block.number <= pulses[id].confirmBlock + claimWindow) {
+                total += _computeReward(id);
+            }
+        }
+    }
+
+    function getScannerRankByConfirmed(address scanner) external view returns (uint256 rank, uint256 totalScanners) {
+        uint256 myConfirmed = scanners[scanner].confirmedPulses;
+        uint256 above = 0;
+        totalScanners = 0;
+        return (above, totalScanners);
+    }
+
+    function isSlotClosed(uint256 slotIndex) external view returns (bool) {
+        return slots[slotIndex].closed;
+    }
+
+    function blocksUntilSlotEnd(uint256 slotIndex) external view returns (uint256) {
+        return _blocksRemainingInSlot(slotIndex);
+    }
+
+    function getPulseIdsPaginated(uint256 page, uint256 pageSize) external view returns (uint256[] memory ids) {
+        uint256 start = page * pageSize;
