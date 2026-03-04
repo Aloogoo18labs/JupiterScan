@@ -1523,3 +1523,64 @@ contract JupiterScan {
     function getSlotPulseCountDirect(uint256 slotIndex) external view returns (uint256) {
         return slots[slotIndex].pulseCount;
     }
+
+    function getSlotTotalMagnitudeDirect(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].totalMagnitude;
+    }
+
+    function getSlotWinningMagnitudeDirect(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].winningMagnitude;
+    }
+
+    function getSlotClosedDirect(uint256 slotIndex) external view returns (bool) {
+        return slots[slotIndex].closed;
+    }
+
+    function getScannerStakeDirect(address scanner) external view returns (uint256) {
+        return scanners[scanner].stake;
+    }
+
+    function getScannerTotalPulsesDirect(address scanner) external view returns (uint256) {
+        return scanners[scanner].totalPulses;
+    }
+
+    function getScannerConfirmedPulsesDirect(address scanner) external view returns (uint256) {
+        return scanners[scanner].confirmedPulses;
+    }
+
+    function getScannerLastSubmitBlockDirect(address scanner) external view returns (uint256) {
+        return scanners[scanner].lastSubmitBlock;
+    }
+
+    function getScannerBannedDirect(address scanner) external view returns (bool) {
+        return scanners[scanner].banned;
+    }
+
+    function getScannerTotalRewardsClaimedDirect(address scanner) external view returns (uint256) {
+        return scanners[scanner].totalRewardsClaimed;
+    }
+
+    function getThresholdMinConfidence() external view returns (uint256) {
+        return thresholdConfig[keccak256("min.confidence")];
+    }
+
+    function getThresholdMaxMagnitude() external view returns (uint256) {
+        return thresholdConfig[keccak256("max.magnitude")];
+    }
+
+    function getThresholdSlotDuration() external view returns (uint256) {
+        return thresholdConfig[keccak256("slot.duration")];
+    }
+
+    function getThresholdRewardClaimBlocks() external view returns (uint256) {
+        return thresholdConfig[keccak256("reward.claim.blocks")];
+    }
+
+    function getCooldownRemaining(address scanner) external view returns (uint256 blocksLeft) {
+        ScannerProfile storage p = scanners[scanner];
+        if (block.number > p.lastSubmitBlock + COOLDOWN_BLOCKS) return 0;
+        return (p.lastSubmitBlock + COOLDOWN_BLOCKS) - block.number;
+    }
+
+    function getNextSlotIndex() external view returns (uint256) {
+        return slotCounter;
