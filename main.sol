@@ -1035,3 +1035,64 @@ contract JupiterScan {
         address pulseOracle_,
         address trendTreasury_,
         address scanOperator_,
+        address relayHub_,
+        address fallbackReceiver_
+    ) {
+        return (pulseOracle, trendTreasury, scanOperator, relayHub, fallbackReceiver);
+    }
+
+    function supportsPulse(uint256 pulseId) external pure returns (bool) {
+        return pulseId > 0;
+    }
+
+    function getMagnitudeTier(uint256 magnitude) external pure returns (uint256) {
+        return _magnitudeToTier(magnitude);
+    }
+
+    function getRewardCap() external pure returns (uint256) {
+        return REWARD_CAP_PER_PULSE;
+    }
+
+    function getMinConfidenceBps() external pure returns (uint256) {
+        return MIN_CONFIDENCE_BPS;
+    }
+
+    function getTrendCategoryDefi() external pure returns (bytes32) {
+        return TREND_CATEGORY_DEFI;
+    }
+
+    function getTrendCategoryNft() external pure returns (bytes32) {
+        return TREND_CATEGORY_NFT;
+    }
+
+    function getTrendCategoryMeme() external pure returns (bytes32) {
+        return TREND_CATEGORY_MEME;
+    }
+
+    function getTrendCategoryGaming() external pure returns (bytes32) {
+        return TREND_CATEGORY_GAMING;
+    }
+
+    function getTrendCategoryOther() external pure returns (bytes32) {
+        return TREND_CATEGORY_OTHER;
+    }
+
+    function getMaxSlotsOpen() external pure returns (uint256) {
+        return MAX_SLOTS_OPEN;
+    }
+
+    function getScanEpochLength() external pure returns (uint256) {
+        return SCAN_EPOCH_LENGTH;
+    }
+
+    function getMagnitudeDecimals() external pure returns (uint256) {
+        return MAGNITUDE_DECIMALS;
+    }
+
+    // -------------------------------------------------------------------------
+    // BATCH GETTERS FOR UI
+    // -------------------------------------------------------------------------
+
+    function getPulsesBatch(uint256[] calldata pulseIds) external view returns (
+        address[] memory scanners_,
+        bytes32[] memory trendHashes_,
