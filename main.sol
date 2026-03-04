@@ -1096,3 +1096,64 @@ contract JupiterScan {
     function getPulsesBatch(uint256[] calldata pulseIds) external view returns (
         address[] memory scanners_,
         bytes32[] memory trendHashes_,
+        uint256[] memory magnitudes_,
+        uint256[] memory slotIndices_,
+        bool[] memory confirmed_,
+        bool[] memory rejected_,
+        uint256[] memory confidenceScores_
+    ) {
+        uint256 len = pulseIds.length;
+        scanners_ = new address[](len);
+        trendHashes_ = new bytes32[](len);
+        magnitudes_ = new uint256[](len);
+        slotIndices_ = new uint256[](len);
+        confirmed_ = new bool[](len);
+        rejected_ = new bool[](len);
+        confidenceScores_ = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            uint256 id = pulseIds[i];
+            if (id > 0 && id <= pulseCounter) {
+                Pulse storage p = pulses[id];
+                scanners_[i] = p.scanner;
+                trendHashes_[i] = p.trendHash;
+                magnitudes_[i] = p.magnitude;
+                slotIndices_[i] = p.slotIndex;
+                confirmed_[i] = p.confirmed;
+                rejected_[i] = p.rejected;
+                confidenceScores_[i] = p.confidenceScore;
+            }
+        }
+    }
+
+    function getSlotsBatch(uint256[] calldata slotIndices) external view returns (
+        uint256[] memory startBlocks_,
+        uint256[] memory endBlocks_,
+        uint256[] memory pulseCounts_,
+        uint256[] memory totalMagnitudes_,
+        uint256[] memory winningMagnitudes_,
+        bool[] memory closed_
+    ) {
+        uint256 len = slotIndices.length;
+        startBlocks_ = new uint256[](len);
+        endBlocks_ = new uint256[](len);
+        pulseCounts_ = new uint256[](len);
+        totalMagnitudes_ = new uint256[](len);
+        winningMagnitudes_ = new uint256[](len);
+        closed_ = new bool[](len);
+        for (uint256 i = 0; i < len; i++) {
+            uint256 idx = slotIndices[i];
+            SlotData storage s = slots[idx];
+            startBlocks_[i] = s.startBlock;
+            endBlocks_[i] = s.endBlock;
+            pulseCounts_[i] = s.pulseCount;
+            totalMagnitudes_[i] = s.totalMagnitude;
+            winningMagnitudes_[i] = s.winningMagnitude;
+            closed_[i] = s.closed;
+        }
+    }
+
+    function getClaimStatusBatch(uint256[] calldata pulseIds, address account) external view returns (bool[] memory claimed_) {
+        uint256 len = pulseIds.length;
+        claimed_ = new bool[](len);
+        for (uint256 i = 0; i < len; i++) {
+            claimed_[i] = claimTracker[pulseIds[i]][account];
