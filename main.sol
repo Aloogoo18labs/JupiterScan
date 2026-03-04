@@ -669,3 +669,64 @@ contract JupiterScan {
     // BATCH / AGGREGATE VIEWS
     // -------------------------------------------------------------------------
 
+    function getPulseIdsInRange(uint256 fromId, uint256 toId) external view returns (uint256[] memory ids) {
+        if (fromId > toId || toId > pulseCounter) return new uint256[](0);
+        uint256 len = toId - fromId + 1;
+        ids = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            ids[i] = fromId + i;
+        }
+    }
+
+    function getConfirmedPulseCount() external view returns (uint256 count) {
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (pulses[i].confirmed) count++;
+        }
+    }
+
+    function getRejectedPulseCount() external view returns (uint256 count) {
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (pulses[i].rejected) count++;
+        }
+    }
+
+    function getSlotPulseCount(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].pulseCount;
+    }
+
+    function getScannerConfirmationRate(address scanner) external view returns (uint256 rateBps) {
+        ScannerProfile storage p = scanners[scanner];
+        if (p.totalPulses == 0) return 0;
+        return (p.confirmedPulses * 10000) / p.totalPulses;
+    }
+
+    function getSnapshot() external view returns (
+        uint256 pulseCount_,
+        uint256 slotCount_,
+        uint256 totalFees_,
+        uint256 totalRewards_,
+        uint256 balance_,
+        bool paused_
+    ) {
+        return (
+            pulseCounter,
+            slotCounter,
+            totalFeesCollected,
+            totalRewardsPaid,
+            address(this).balance,
+            emergencyPaused
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // INTERNAL HELPERS
+    // -------------------------------------------------------------------------
+
+    function _min(uint256 a, uint256 b) internal pure returns (uint256) {
+        return a < b ? a : b;
+    }
+
+    function _safeRewardCap(uint256 rawReward) internal pure returns (uint256) {
+        return rawReward > REWARD_CAP_PER_PULSE ? REWARD_CAP_PER_PULSE : rawReward;
+    }
+
