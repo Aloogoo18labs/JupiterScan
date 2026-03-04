@@ -425,3 +425,64 @@ contract JupiterScan {
         emit RelayForwarded(msg.sender, payloadHash, block.number);
     }
 
+    function setRelayAllowed(address relay, bool allowed) external onlyOperator {
+        if (relay == address(0)) revert JS_ZeroAddress();
+        allowedRelays[relay] = allowed;
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: CONFIG (operator)
+    // -------------------------------------------------------------------------
+
+    function setThreshold(bytes32 key, uint256 value) external onlyOperator {
+        uint256 oldVal = thresholdConfig[key];
+        thresholdConfig[key] = value;
+        emit ThresholdUpdated(key, oldVal, value);
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: SLASH / BAN (operator)
+    // -------------------------------------------------------------------------
+
+    function slashScanner(address scanner, uint256 amount, bytes32 reasonCode) external onlyOperator nonReentrant {
+        if (scanner == address(0)) revert JS_ZeroAddress();
+        ScannerProfile storage p = scanners[scanner];
+        if (amount > p.stake) amount = p.stake;
+        if (amount == 0) return;
+        p.stake -= amount;
+        (bool ok, ) = trendTreasury.call{ value: amount }("");
+        if (!ok) revert JS_TransferFailed();
+        emit ScannerSlashed(scanner, amount, reasonCode);
+    }
+
+    function setScannerBanned(address scanner, bool banned) external onlyOperator {
+        if (scanner == address(0)) revert JS_ZeroAddress();
+        scanners[scanner].banned = banned;
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTERNAL: EMERGENCY
+    // -------------------------------------------------------------------------
+
+    function togglePause() external onlyOperator {
+        emergencyPaused = !emergencyPaused;
+        emit EmergencyPauseToggled(emergencyPaused, msg.sender);
+    }
+
+    function withdrawToTreasury(uint256 amount) external onlyOperator nonReentrant whenPaused {
+        if (amount == 0) revert JS_ZeroAmount();
+        uint256 balance = address(this).balance;
+        if (amount > balance) amount = balance;
+        (bool ok, ) = trendTreasury.call{ value: amount }("");
+        if (!ok) revert JS_TransferFailed();
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS: PULSES
+    // -------------------------------------------------------------------------
+
+    function getPulse(uint256 pulseId) external view returns (
+        address scanner_,
+        bytes32 trendHash_,
+        uint256 magnitude_,
+        uint256 slotIndex_,
