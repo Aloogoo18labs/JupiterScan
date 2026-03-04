@@ -1218,3 +1218,64 @@ contract JupiterScan {
             submittedAtBlock: block.number,
             magnitudeTier: tier,
             rewardClaimed: false
+        });
+        scannerPulseIds[msg.sender].push(id);
+        categoryPulseCount[categoryHash]++;
+        emit PulseSubmitted(id, msg.sender, trendHash, magnitude, slotIndex);
+    }
+
+    // -------------------------------------------------------------------------
+    // ADDITIONAL INTERNAL HELPERS
+    // -------------------------------------------------------------------------
+
+    function _clampConfidence(uint256 score) internal pure returns (uint256) {
+        return score > 10000 ? 10000 : score;
+    }
+
+    function _effectiveRewardBlocks() internal view returns (uint256) {
+        uint256 v = thresholdConfig[keccak256("reward.claim.blocks")];
+        return v != 0 ? v : REWARD_CLAIM_BLOCKS;
+    }
+
+    function _canClaim(uint256 pulseId, address account) internal view returns (bool) {
+        if (pulseId == 0 || pulseId > pulseCounter) return false;
+        Pulse storage p = pulses[pulseId];
+        if (p.scanner != account || !p.confirmed || claimTracker[pulseId][account]) return false;
+        return block.number <= p.confirmBlock + _effectiveRewardBlocks();
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTENDED ANALYTICS
+    // -------------------------------------------------------------------------
+
+    function getTopScannersByConfirmed(uint256 limit) external view returns (address[] memory addrs, uint256[] memory counts) {
+        addrs = new address[](0);
+        counts = new uint256[](0);
+    }
+
+    function getSlotIndicesClosed() external view returns (uint256[] memory indices) {
+        uint256 n = 0;
+        for (uint256 i = 0; i < slotCounter; i++) {
+            if (slots[i].closed) n++;
+        }
+        indices = new uint256[](n);
+        uint256 j = 0;
+        for (uint256 i = 0; i < slotCounter; i++) {
+            if (slots[i].closed) {
+                indices[j] = i;
+                j++;
+            }
+        }
+    }
+
+    function getSlotIndicesOpen() external view returns (uint256[] memory indices) {
+        uint256 n = 0;
+        for (uint256 i = 0; i < slotCounter; i++) {
+            if (_isSlotActive(i)) n++;
+        }
+        indices = new uint256[](n);
+        uint256 j = 0;
+        for (uint256 i = 0; i < slotCounter; i++) {
+            if (_isSlotActive(i)) {
+                indices[j] = i;
+                j++;
