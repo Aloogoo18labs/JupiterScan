@@ -1279,3 +1279,64 @@ contract JupiterScan {
             if (_isSlotActive(i)) {
                 indices[j] = i;
                 j++;
+            }
+        }
+    }
+
+    function getPulseIdAtSlotPosition(uint256 slotIndex, uint256 position) external view returns (uint256 pulseId) {
+        uint256 pos = 0;
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (pulses[i].slotIndex == slotIndex) {
+                if (pos == position) return i;
+                pos++;
+            }
+        }
+        return 0;
+    }
+
+    function getCategoryStats() external view returns (
+        uint256 defiCount_,
+        uint256 nftCount_,
+        uint256 memeCount_,
+        uint256 gamingCount_,
+        uint256 otherCount_
+    ) {
+        defiCount_ = categoryPulseCount[TREND_CATEGORY_DEFI];
+        nftCount_ = categoryPulseCount[TREND_CATEGORY_NFT];
+        memeCount_ = categoryPulseCount[TREND_CATEGORY_MEME];
+        gamingCount_ = categoryPulseCount[TREND_CATEGORY_GAMING];
+        otherCount_ = categoryPulseCount[TREND_CATEGORY_OTHER];
+    }
+
+    function getEpochForBlock(uint256 blockNum) external view returns (uint256) {
+        return blockNum / SCAN_EPOCH_LENGTH;
+    }
+
+    function getCurrentEpoch() external view returns (uint256) {
+        return block.number / SCAN_EPOCH_LENGTH;
+    }
+
+    function getSlotForBlock(uint256 blockNum) external view returns (uint256 slotIndex) {
+        for (uint256 i = 0; i < slotCounter; i++) {
+            SlotData storage s = slots[i];
+            if (s.startBlock != 0 && blockNum >= s.startBlock && blockNum <= s.endBlock) return i;
+        }
+        return type(uint256).max;
+    }
+
+    function getPulseAge(uint256 pulseId) external view returns (uint256 blocksSinceSubmit) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        Pulse storage p = pulses[pulseId];
+        return block.number - p.submitBlock;
+    }
+
+    function getTimeToClaimDeadline(uint256 pulseId) external view returns (uint256 blocksRemaining) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        Pulse storage p = pulses[pulseId];
+        if (!p.confirmed || claimTracker[pulseId][p.scanner]) return 0;
+        uint256 deadline = p.confirmBlock + _effectiveRewardBlocks();
+        if (block.number >= deadline) return 0;
+        return deadline - block.number;
+    }
+
+    function canClaimPulse(uint256 pulseId, address account) external view returns (bool) {
