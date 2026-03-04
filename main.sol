@@ -1157,3 +1157,64 @@ contract JupiterScan {
         claimed_ = new bool[](len);
         for (uint256 i = 0; i < len; i++) {
             claimed_[i] = claimTracker[pulseIds[i]][account];
+        }
+    }
+
+    function getRewardsForPulses(uint256[] calldata pulseIds) external view returns (uint256[] memory rewards_) {
+        uint256 len = pulseIds.length;
+        rewards_ = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            uint256 id = pulseIds[i];
+            if (id > 0 && id <= pulseCounter) {
+                Pulse storage p = pulses[id];
+                if (p.confirmed && !claimTracker[id][p.scanner]) {
+                    uint256 claimWindow = thresholdConfig[keccak256("reward.claim.blocks")] != 0
+                        ? thresholdConfig[keccak256("reward.claim.blocks")]
+                        : REWARD_CLAIM_BLOCKS;
+                    if (block.number <= p.confirmBlock + claimWindow) {
+                        rewards_[i] = _computeReward(id);
+                    }
+                }
+            }
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // SUBMIT PULSE WITH CATEGORY
+    // -------------------------------------------------------------------------
+
+    function submitPulseWithCategory(bytes32 trendHash, uint256 magnitude, uint256 slotIndex, bytes32 categoryHash) external nonReentrant whenNotPaused {
+        if (magnitude == 0 || magnitude > MAX_PULSE_MAGNITUDE) revert JS_InvalidMagnitude();
+        ScannerProfile storage prof = scanners[msg.sender];
+        if (prof.stake < MIN_SCANNER_STAKE || prof.banned) revert JS_StakeInsufficient();
+        if (block.number <= prof.lastSubmitBlock + COOLDOWN_BLOCKS) revert JS_CooldownActive();
+        (uint256 startBlock, uint256 endBlock, bool closed) = _getSlotBounds(slotIndex);
+        if (block.number < startBlock || block.number > endBlock) revert JS_InvalidSlot();
+        if (closed) revert JS_SlotClosed();
+        if (scannerPulseInSlot[msg.sender][slotIndex]) revert JS_DuplicateSubmission();
+        pulseCounter++;
+        uint256 id = pulseCounter;
+        pulses[id] = Pulse({
+            scanner: msg.sender,
+            trendHash: trendHash,
+            magnitude: magnitude,
+            slotIndex: slotIndex,
+            submitBlock: block.number,
+            confirmed: false,
+            rejected: false,
+            confidenceScore: 0,
+            confirmBlock: 0
+        });
+        SlotData storage s = slots[slotIndex];
+        s.pulseCount++;
+        s.totalMagnitude += magnitude;
+        if (magnitude > s.winningMagnitude) s.winningMagnitude = magnitude;
+        prof.totalPulses++;
+        prof.lastSubmitBlock = block.number;
+        scannerPulseInSlot[msg.sender][slotIndex] = true;
+        uint256 tier = _magnitudeToTier(magnitude);
+        pulseMetadata[id] = PulseMetadata({
+            categoryHash: categoryHash,
+            submittedAtBlock: block.number,
+            magnitudeTier: tier,
+            rewardClaimed: false
