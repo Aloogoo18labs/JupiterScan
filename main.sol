@@ -791,3 +791,64 @@ contract JupiterScan {
         uint256 take = _min(limit, len - offset);
         ids = new uint256[](take);
         for (uint256 i = 0; i < take; i++) {
+            ids[i] = arr[offset + i];
+        }
+    }
+
+    function getScannerPulseCount(address scanner) external view returns (uint256) {
+        return scannerPulseIds[scanner].length;
+    }
+
+    function getSlotSnapshotIndex(uint256 slotIndex) external view returns (uint256) {
+        return slotToSnapshotIndex[slotIndex];
+    }
+
+    // -------------------------------------------------------------------------
+    // ANALYTICS VIEWS
+    // -------------------------------------------------------------------------
+
+    function getTotalMagnitudeBySlot(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].totalMagnitude;
+    }
+
+    function getWinningMagnitudeBySlot(uint256 slotIndex) external view returns (uint256) {
+        return slots[slotIndex].winningMagnitude;
+    }
+
+    function getOpenSlotsCount() external view returns (uint256 count) {
+        for (uint256 i = 0; i < slotCounter; i++) {
+            if (_isSlotActive(i)) count++;
+        }
+    }
+
+    function getClosedSlotsCount() external view returns (uint256 count) {
+        for (uint256 i = 0; i < slotCounter; i++) {
+            if (slots[i].closed) count++;
+        }
+    }
+
+    function getPulsesInSlot(uint256 slotIndex, uint256 maxCount) external view returns (uint256[] memory pulseIds) {
+        uint256[] memory all = new uint256[](pulseCounter);
+        uint256 found = 0;
+        for (uint256 i = 1; i <= pulseCounter && found < maxCount; i++) {
+            if (pulses[i].slotIndex == slotIndex) {
+                all[found] = i;
+                found++;
+            }
+        }
+        pulseIds = new uint256[](found);
+        for (uint256 j = 0; j < found; j++) {
+            pulseIds[j] = all[j];
+        }
+    }
+
+    function getAverageConfidence() external view returns (uint256 sum, uint256 count) {
+        for (uint256 i = 1; i <= pulseCounter; i++) {
+            if (pulses[i].confirmed) {
+                sum += pulses[i].confidenceScore;
+                count++;
+            }
+        }
+    }
+
+    function getAverageMagnitude() external view returns (uint256 sum, uint256 count) {
