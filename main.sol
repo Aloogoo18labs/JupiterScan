@@ -1340,3 +1340,64 @@ contract JupiterScan {
     }
 
     function canClaimPulse(uint256 pulseId, address account) external view returns (bool) {
+        return _canClaim(pulseId, account);
+    }
+
+    function getEffectiveRewardClaimBlocks() external view returns (uint256) {
+        return _effectiveRewardBlocks();
+    }
+
+    function getConfigKeys() external pure returns (bytes32[] memory keys) {
+        keys = new bytes32[](4);
+        keys[0] = keccak256("min.confidence");
+        keys[1] = keccak256("max.magnitude");
+        keys[2] = keccak256("slot.duration");
+        keys[3] = keccak256("reward.claim.blocks");
+    }
+
+    function getFullConfig() external view returns (uint256[] memory values) {
+        values = new uint256[](4);
+        values[0] = thresholdConfig[keccak256("min.confidence")];
+        values[1] = thresholdConfig[keccak256("max.magnitude")];
+        values[2] = thresholdConfig[keccak256("slot.duration")];
+        values[3] = thresholdConfig[keccak256("reward.claim.blocks")];
+    }
+
+    function getPulseStatusString(uint256 pulseId) external view returns (string memory) {
+        if (pulseId == 0 || pulseId > pulseCounter) return "invalid";
+        Pulse storage p = pulses[pulseId];
+        if (p.confirmed) return "confirmed";
+        if (p.rejected) return "rejected";
+        return "pending";
+    }
+
+    function getScannerEligibility(address scanner) external view returns (
+        bool hasStake_,
+        bool notBanned_,
+        bool meetsStake_
+    ) {
+        ScannerProfile storage p = scanners[scanner];
+        hasStake_ = p.stake > 0;
+        notBanned_ = !p.banned;
+        meetsStake_ = p.stake >= MIN_SCANNER_STAKE;
+    }
+
+    function getContractInfo() external pure returns (
+        bytes32 domainSeal_,
+        bytes32 slotLabel_,
+        uint256 version_
+    ) {
+        return (JUPITER_DOMAIN_SEAL, SLOT_LABEL, PROTOCOL_VERSION);
+    }
+
+    function getBalanceAndFees() external view returns (uint256 balance_, uint256 totalFees_, uint256 totalRewards_) {
+        return (address(this).balance, totalFeesCollected, totalRewardsPaid);
+    }
+
+    function getRoleAddresses() external view returns (
+        address oracle_,
+        address treasury_,
+        address operator_,
+        address relay_,
+        address fallback_
+    ) {
