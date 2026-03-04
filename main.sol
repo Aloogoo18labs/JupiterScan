@@ -486,3 +486,64 @@ contract JupiterScan {
         bytes32 trendHash_,
         uint256 magnitude_,
         uint256 slotIndex_,
+        uint256 submitBlock_,
+        bool confirmed_,
+        bool rejected_,
+        uint256 confidenceScore_,
+        uint256 confirmBlock_
+    ) {
+        if (pulseId == 0 || pulseId > pulseCounter) {
+            return (address(0), bytes32(0), 0, 0, 0, false, false, 0, 0);
+        }
+        Pulse storage p = pulses[pulseId];
+        return (
+            p.scanner,
+            p.trendHash,
+            p.magnitude,
+            p.slotIndex,
+            p.submitBlock,
+            p.confirmed,
+            p.rejected,
+            p.confidenceScore,
+            p.confirmBlock
+        );
+    }
+
+    function getPulseCount() external view returns (uint256) {
+        return pulseCounter;
+    }
+
+    function isPulseConfirmed(uint256 pulseId) external view returns (bool) {
+        if (pulseId == 0 || pulseId > pulseCounter) return false;
+        return pulses[pulseId].confirmed;
+    }
+
+    function isPulseRejected(uint256 pulseId) external view returns (bool) {
+        if (pulseId == 0 || pulseId > pulseCounter) return false;
+        return pulses[pulseId].rejected;
+    }
+
+    function getRewardForPulse(uint256 pulseId) external view returns (uint256) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        Pulse storage p = pulses[pulseId];
+        if (!p.confirmed || claimTracker[pulseId][p.scanner]) return 0;
+        uint256 claimWindow = thresholdConfig[keccak256("reward.claim.blocks")] != 0
+            ? thresholdConfig[keccak256("reward.claim.blocks")]
+            : REWARD_CLAIM_BLOCKS;
+        if (block.number > p.confirmBlock + claimWindow) return 0;
+        return _computeReward(pulseId);
+    }
+
+    // -------------------------------------------------------------------------
+    // VIEWS: SLOTS
+    // -------------------------------------------------------------------------
+
+    function getSlot(uint256 slotIndex) external view returns (
+        uint256 startBlock_,
+        uint256 endBlock_,
+        uint256 pulseCount_,
+        uint256 totalMagnitude_,
+        uint256 winningMagnitude_,
+        bool closed_
+    ) {
+        SlotData storage s = slots[slotIndex];
