@@ -730,3 +730,64 @@ contract JupiterScan {
         return rawReward > REWARD_CAP_PER_PULSE ? REWARD_CAP_PER_PULSE : rawReward;
     }
 
+    function _isSlotActive(uint256 slotIndex) internal view returns (bool) {
+        SlotData storage s = slots[slotIndex];
+        if (s.startBlock == 0 || s.closed) return false;
+        return block.number >= s.startBlock && block.number <= s.endBlock;
+    }
+
+    function _blocksRemainingInSlot(uint256 slotIndex) internal view returns (uint256) {
+        SlotData storage s = slots[slotIndex];
+        if (s.endBlock == 0 || block.number >= s.endBlock) return 0;
+        return s.endBlock - block.number;
+    }
+
+    function _magnitudeToTier(uint256 magnitude) internal pure returns (uint256) {
+        if (magnitude >= 1e17) return 3;
+        if (magnitude >= 1e16) return 2;
+        return 1;
+    }
+
+    // -------------------------------------------------------------------------
+    // EXTENDED VIEWS: PULSE METADATA & CATEGORIES
+    // -------------------------------------------------------------------------
+
+    function getPulseMetadata(uint256 pulseId) external view returns (
+        bytes32 categoryHash_,
+        uint256 submittedAtBlock_,
+        uint256 magnitudeTier_,
+        bool rewardClaimed_
+    ) {
+        if (pulseId == 0 || pulseId > pulseCounter) {
+            return (bytes32(0), 0, 0, false);
+        }
+        PulseMetadata storage m = pulseMetadata[pulseId];
+        return (m.categoryHash, m.submittedAtBlock, m.magnitudeTier, m.rewardClaimed);
+    }
+
+    function getTrendSnapshot(uint256 snapshotIndex) external view returns (
+        uint256 slotIndex_,
+        uint256 totalMagnitudeInSlot_,
+        uint256 pulseCountInSlot_,
+        uint256 blockWhenClosed_
+    ) {
+        TrendSnapshot storage t = trendSnapshots[snapshotIndex];
+        return (
+            t.slotIndex,
+            t.totalMagnitudeInSlot,
+            t.pulseCountInSlot,
+            t.blockWhenClosed
+        );
+    }
+
+    function getCategoryPulseCount(bytes32 categoryHash) external view returns (uint256) {
+        return categoryPulseCount[categoryHash];
+    }
+
+    function getScannerPulseIds(address scanner, uint256 offset, uint256 limit) external view returns (uint256[] memory ids) {
+        uint256[] storage arr = scannerPulseIds[scanner];
+        uint256 len = arr.length;
+        if (offset >= len) return new uint256[](0);
+        uint256 take = _min(limit, len - offset);
+        ids = new uint256[](take);
+        for (uint256 i = 0; i < take; i++) {
