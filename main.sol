@@ -1584,3 +1584,56 @@ contract JupiterScan {
 
     function getNextSlotIndex() external view returns (uint256) {
         return slotCounter;
+    }
+
+    function getPulseCounter() external view returns (uint256) {
+        return pulseCounter;
+    }
+
+    function getEmergencyPaused() external view returns (bool) {
+        return emergencyPaused;
+    }
+
+    function getTotalFeesCollectedDirect() external view returns (uint256) {
+        return totalFeesCollected;
+    }
+
+    function getTotalRewardsPaidDirect() external view returns (uint256) {
+        return totalRewardsPaid;
+    }
+
+    function computeRewardView(uint256 pulseId) external view returns (uint256) {
+        if (pulseId == 0 || pulseId > pulseCounter) return 0;
+        return _computeReward(pulseId);
+    }
+
+    function getSlotBoundsView(uint256 slotIndex) external view returns (uint256 startBlock, uint256 endBlock, bool closed) {
+        return _getSlotBounds(slotIndex);
+    }
+
+    function isSlotActiveView(uint256 slotIndex) external view returns (bool) {
+        return _isSlotActive(slotIndex);
+    }
+
+    function blocksRemainingInSlotView(uint256 slotIndex) external view returns (uint256) {
+        return _blocksRemainingInSlot(slotIndex);
+    }
+
+    function magnitudeToTierView(uint256 magnitude) external pure returns (uint256) {
+        return _magnitudeToTier(magnitude);
+    }
+
+    function safeRewardCapView(uint256 rawReward) external pure returns (uint256) {
+        return _safeRewardCap(rawReward);
+    }
+
+    function minView(uint256 a, uint256 b) external pure returns (uint256) {
+        return _min(a, b);
+    }
+
+    // -------------------------------------------------------------------------
+    // RECEIVE
+    // -------------------------------------------------------------------------
+
+    receive() external payable {}
+}
