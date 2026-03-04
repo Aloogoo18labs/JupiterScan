@@ -913,3 +913,64 @@ contract JupiterScan {
 
     function getPulseIdsPaginated(uint256 page, uint256 pageSize) external view returns (uint256[] memory ids) {
         uint256 start = page * pageSize;
+        if (start >= pulseCounter) return new uint256[](0);
+        uint256 end = start + pageSize;
+        if (end > pulseCounter) end = pulseCounter;
+        uint256 len = end - start;
+        ids = new uint256[](len);
+        for (uint256 i = 0; i < len; i++) {
+            ids[i] = start + i + 1;
+        }
+    }
+
+    function getRecentPulseIds(uint256 count) external view returns (uint256[] memory ids) {
+        if (pulseCounter == 0) return new uint256[](0);
+        uint256 take = _min(count, pulseCounter);
+        ids = new uint256[](take);
+        for (uint256 i = 0; i < take; i++) {
+            ids[i] = pulseCounter - i;
+        }
+    }
+
+    function getPulseSummary(uint256 pulseId) external view returns (
+        address scanner_,
+        uint256 magnitude_,
+        uint256 slotIndex_,
+        bool confirmed_,
+        bool rejected_,
+        uint256 rewardAmount_
+    ) {
+        if (pulseId == 0 || pulseId > pulseCounter) {
+            return (address(0), 0, 0, false, false, 0);
+        }
+        Pulse storage p = pulses[pulseId];
+        uint256 rewardAmount_ = 0;
+        if (p.confirmed && !claimTracker[pulseId][p.scanner]) {
+            uint256 claimWindow = thresholdConfig[keccak256("reward.claim.blocks")] != 0
+                ? thresholdConfig[keccak256("reward.claim.blocks")]
+                : REWARD_CLAIM_BLOCKS;
+            if (block.number <= p.confirmBlock + claimWindow) rewardAmount_ = _computeReward(pulseId);
+        }
+        return (
+            p.scanner,
+            p.magnitude,
+            p.slotIndex,
+            p.confirmed,
+            p.rejected,
+            rewardAmount_
+        );
+    }
+
+    function getSlotSummary(uint256 slotIndex) external view returns (
+        uint256 startBlock_,
+        uint256 endBlock_,
+        uint256 pulseCount_,
+        uint256 totalMagnitude_,
+        uint256 winningMagnitude_,
+        bool closed_,
+        uint256 blocksRemaining_
+    ) {
+        SlotData storage s = slots[slotIndex];
+        blocksRemaining_ = _blocksRemainingInSlot(slotIndex);
+        return (
+            s.startBlock,
